@@ -68,6 +68,9 @@ Please install these according to their instructions.
   THECATAPI_KEY = None
   WOLFRAM_KEY = None
   APIXU_KEY = None
+
+  USE_GAME_MODEL = False
+  DEV_MODE = False
   ```
   * You can get your bot token from the [Discord Developer Portal](https://discord.com/developers/applications).
     If you haven't already:

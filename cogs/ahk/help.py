@@ -8,14 +8,18 @@ from datetime import datetime, timedelta
 from json import JSONDecodeError, dumps, loads
 
 import discord
-import numpy as np
 import unidecode
 from discord.ext import commands, tasks
 
-log.info('Importing keras...')
-from tensorflow import keras
+from config import USE_GAME_MODEL
 
-log.info('Finished importing keras.')
+if USE_GAME_MODEL:
+	import numpy as np  # type: ignore
+	log.info('Importing keras...')
+	from tensorflow import keras  # type: ignore
+	log.info('Finished importing keras.')
+else:
+	log.info('keras.model has not been loaded.')
 
 from cogs.mixins import AceMixin
 from ids import ACTIVE_CATEGORY_ID, ACTIVE_INFO_CHAN_ID, AHK_GUILD_ID, CLOSED_CATEGORY_ID, GET_HELP_CHAN_ID, IGNORE_ACTIVE_CHAN_IDS, OPEN_CATEGORY_ID, \
@@ -96,12 +100,21 @@ class AutoHotkeyHelpSystem(AceMixin, commands.Cog):
 		self.channel_reclaimer.start()
 		self.claimed_messages = dict()
 
-		log.debug('Loading model')
-		self.model = keras.models.load_model('model')
-		log.debug('Finished loading model')
+		
+		if USE_GAME_MODEL:
+			log.debug('Loading model')
+			self.model = keras.models.load_model('model')  # type: ignore
+			log.debug('Finished loading model')
+		else:
+			log.info('Model is disabled.')
+			self.model = None
+		
 
 	def classify(self, text):
-		return self.model(np.array([standardize(text)[0]])).numpy()[0][0]
+		if USE_GAME_MODEL:
+			return self.model(np.array([standardize(text)[0]])).numpy()[0][0]
+		else:
+			return 0
 
 	@property
 	def open_category(self):

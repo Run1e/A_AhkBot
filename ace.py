@@ -3,6 +3,7 @@ import json
 import logging.handlers
 import os
 import sys
+import traceback
 from datetime import datetime
 
 import aiohttp
@@ -156,8 +157,16 @@ class AceBot(commands.Bot):
 		gc = await self.config.get_entry(message.guild.id)
 		return gc.prefix or DEFAULT_PREFIX
 
-	def load_extensions(self):
+	def load_extensions(self, reload: bool=False):
+		"""Reload bot Extensions. 
+
+		If `reload` is False, then cogs are unloaded and loaded.
+		If `reload` is True, then cogs are reloaded using `reload_extension()`
+
+		"""
+
 		reloaded = list()
+		errored = list()
 
 		for name in EXTENSIONS:
 			file_name = name.replace('.', '/') + '.py'
@@ -166,17 +175,36 @@ class AceBot(commands.Bot):
 				mtime = os.stat(file_name).st_mtime_ns
 
 				if mtime > self.modified_times.get(name, 0):
-					if name in self.extensions.keys():
+
+					if name in self.extensions.keys() and not reload:
 						self.unload_extension(name)
 
-					log.debug('Loading %s', name)
+					try:
+						log.debug('Loading %s', name)
 
-					self.load_extension(name)
-					self.modified_times[name] = mtime
+						if reload:
 
-					reloaded.append(name)
+							try:
+								self.reload_extension(name)
+							except commands.ExtensionNotLoaded:
+								self.load_extension(name)
+						else:
+							self.load_extension(name)
+						self.modified_times[name] = mtime
 
-		return reloaded
+						reloaded.append(name)
+
+					except Exception as e:
+
+						if not DEV_MODE:
+							raise e
+
+						log.error(f'Failed to load extension: {name}')
+						log.error(e)
+						errored.append((name, e.args[0].lstrip(f"Extension '{name}' raised an error:")))
+						print("".join(traceback.format_exception(*sys.exc_info())).strip())
+
+		return reloaded, errored
 
 	async def on_command(self, ctx):
 		spl = ctx.message.content.split('\n')
